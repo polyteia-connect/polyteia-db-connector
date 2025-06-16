@@ -1,12 +1,15 @@
 # Polyteia DB Connector
 
-Polyteia DB Connector is a tool designed to extract data from SQL databases (PostgreSQL or MySQL), transform the results into Parquet format, and upload them to a Polyteia dataset via API. It is ideal for scheduled, automated data transfers from your internal databases to the Polyteia platform.
+Polyteia DB Connector is a tool designed to extract data from SQL databases (PostgreSQL or MySQL), transform the results
+into Parquet format, and upload them to a Polyteia dataset via API. It is ideal for scheduled, automated data transfers
+from your internal databases to the Polyteia platform.
 
 ---
 
 ## Features
 
-- **Database Support:** Connects to PostgreSQL and MySQL databases using DuckDB for efficient querying and Parquet export.
+- **Database Support:** Connects to PostgreSQL and MySQL databases using DuckDB for efficient querying and Parquet
+  export.
 - **Automated Scheduling:** Runs jobs on a configurable cron schedule.
 - **Polyteia Integration:** Securely uploads data to Polyteia datasets using API tokens.
 - **Flexible Deployment:** Run locally, as a Docker container, or in Kubernetes (Helm chart included).
@@ -19,7 +22,8 @@ Polyteia DB Connector is a tool designed to extract data from SQL databases (Pos
 ## Architecture & Workflow
 
 1. **Configuration:** The connector loads its configuration from environment variables or a `.env` file.
-2. **Database Connection:** Uses DuckDB to connect to the source database (PostgreSQL/MySQL) and execute a user-defined SQL query.
+2. **Database Connection:** Uses DuckDB to connect to the source database (PostgreSQL/MySQL) and execute a user-defined
+   SQL query.
 3. **Data Export:** The query result is exported as a Parquet file to a temporary location.
 4. **Authentication:** The connector authenticates with the Polyteia API using a personal access token.
 5. **Upload:** The Parquet file is uploaded to the specified Polyteia dataset.
@@ -30,26 +34,31 @@ Polyteia DB Connector is a tool designed to extract data from SQL databases (Pos
 
 ## Configuration
 
-All configuration is done via environment variables (can be set in a `.env` file or injected as secrets in Kubernetes). Below is a list of supported variables:
+All configuration is done via environment variables (can be set in a `.env` file or injected as secrets in Kubernetes).
+Below is a list of supported variables:
 
-| Variable                   | Description                                                                 | Required | Default                        |
-|----------------------------|-----------------------------------------------------------------------------|----------|---------------------------------|
-| `PERSONAL_ACCESS_TOKEN`    | Polyteia API personal access token.                                         | Yes      | -                               |
-| `POLYTEIA_BASE_URL`        | Base URL for Polyteia API.                                                  | No       | https://app.polyteia.com        |
-| `DATASET_ID`               | Target Polyteia dataset ID.                                                 | Yes      | -                               |
-| `CRON_SCHEDULE`            | Cron expression for job scheduling.                                         | No       | 0 0 * * * (midnight daily)      |
-| `LOG_LEVEL`                | Log level: debug, info, warn, error.                                        | No       | info                            |
-| `LOG_FORMAT`               | Log format: text or json.                                                   | No       | text                            |
-| `HEALTH_CHECK_PORT`        | Port for health check server.                                               | No       | 8080                            |
-| `SOURCE_DATABASE_HOST`     | Hostname of the source database.                                            | Yes      | -                               |
-| `SOURCE_DATABASE_PORT`     | Port of the source database.                                                | Yes      | -                               |
-| `SOURCE_DATABASE_USER`     | Username for the source database.                                           | Yes      | -                               |
-| `SOURCE_DATABASE_PASSWORD` | Password for the source database.                                           | No       | -                               |
-| `SOURCE_DATABASE_NAME`     | Name of the source database.                                                | Yes      | -                               |
-| `SOURCE_DATABASE_TYPE`     | Type of the source database: `postgres` or `mysql`.                         | Yes      | -                               |
-| `SOURCE_DATABASE_SQL_QUERY`| SQL query to execute on the source database.                                | Yes      | -                               |
+| Variable                    | Description                                         | Required | Default                    |
+|-----------------------------|-----------------------------------------------------|----------|----------------------------|
+| `PERSONAL_ACCESS_TOKEN`     | Polyteia API personal access token.                 | Yes      | -                          |
+| `POLYTEIA_BASE_URL`         | Base URL for Polyteia API.                          | No       | https://app.polyteia.com   |
+| `DATASET_ID`                | Target Polyteia dataset ID.                         | Yes      | -                          |
+| `CRON_SCHEDULE`             | Cron expression for job scheduling.                 | No       | 0 0 * * * (midnight daily) |
+| `LOG_LEVEL`                 | Log level: debug, info, warn, error.                | No       | info                       |
+| `LOG_FORMAT`                | Log format: text or json.                           | No       | text                       |
+| `HEALTH_CHECK_PORT`         | Port for health check server.                       | No       | 8080                       |
+| `SOURCE_DATABASE_HOST`      | Hostname of the source database.                    | Yes      | -                          |
+| `SOURCE_DATABASE_PORT`      | Port of the source database.                        | Yes      | -                          |
+| `SOURCE_DATABASE_USER`      | Username for the source database.                   | Yes      | -                          |
+| `SOURCE_DATABASE_PASSWORD`  | Password for the source database.                   | No       | -                          |
+| `SOURCE_DATABASE_NAME`      | Name of the source database.                        | Yes      | -                          |
+| `SOURCE_DATABASE_TYPE`      | Type of the source database: `postgres` or `mysql`. | Yes      | -                          |
+| `SOURCE_DATABASE_SQL_QUERY` | SQL query to execute on the source database.        | Yes      | -                          |
 
 ---
+
+> [!TIP]
+> You can checkout [Polyteia Docs](https://docs.polyteia.com/platform-docs/en/account/personal-access-keys-pak) for
+> information about how to create personal access keys.
 
 ## Example `.env` File
 
@@ -67,8 +76,12 @@ SOURCE_DATABASE_USER=dbuser
 SOURCE_DATABASE_PASSWORD=dbpassword
 SOURCE_DATABASE_NAME=mydb
 SOURCE_DATABASE_TYPE=postgres
-SOURCE_DATABASE_SQL_QUERY=SELECT * FROM my_table;
+SOURCE_DATABASE_SQL_QUERY=SELECT * FROM db.my_table;
 ```
+
+> [!NOTE]  
+> The SQL query must reference `db` as the database name as the external database is attached to duckdb as `db`
+> So instead of writing query: `SELECT * FROM my_table`, you must write `SELECT * FROM db.my_table`.
 
 ---
 
@@ -107,7 +120,7 @@ docker run -e PERSONAL_ACCESS_TOKEN=... -e DATASET_ID=... ... polyteia-db-connec
 
 A Helm chart is provided in `charts/polyteia-db-connector`.
 
-1. Customize `values.yaml` for your environment and secrets.
+1. Customize [values.yaml](./charts/polyteia-db-connector/values.yaml) for your environment and secrets.
 2. Deploy with Helm:
 
 ```bash
@@ -121,19 +134,24 @@ helm upgrade --install polyteia-db-connector charts/polyteia-db-connector
 
 ## Health Check
 
-The connector exposes a health check endpoint at `http://<host>:<HEALTH_CHECK_PORT>/healthz` for liveness/readiness probes.
+The connector exposes a health check endpoint at `http://<host>:<HEALTH_CHECK_PORT>/healthz` for liveness/readiness
+probes.
 
 ---
 
 ## Versioning
 
-This project follows [Semantic Versioning](https://semver.org/). Releases are published on GitHub and as Docker images. Check the [releases page](https://github.com/polyteia-connect/polyteia-db-connector/releases) for the latest version and changelog.
+This project follows [Semantic Versioning](https://semver.org/). Releases are published on GitHub and as Docker images.
+Check the [releases page](https://github.com/polyteia-connect/polyteia-db-connector/releases) for the latest version and
+changelog.
 
 ---
 
 ## Contributing
 
-Contributions, issues, and feature requests are welcome! Please use [GitHub Issues](https://github.com/polyteia-connect/polyteia-db-connector/issues/new/choose) to report bugs or suggest enhancements.
+Contributions, issues, and feature requests are welcome! Please
+use [GitHub Issues](https://github.com/polyteia-connect/polyteia-db-connector/issues/new/choose) to report bugs or
+suggest enhancements.
 
 ---
 
