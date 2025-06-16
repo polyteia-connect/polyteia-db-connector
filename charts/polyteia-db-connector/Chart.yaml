@@ -1,0 +1,4 @@
+apiVersion: v2
+name: polyteia-db-connector
+version: 0.0.1
+description: Deploy Polyteia DB Connector to Kubernetes

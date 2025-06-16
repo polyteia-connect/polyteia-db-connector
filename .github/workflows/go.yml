@@ -1,0 +1,107 @@
+name: Go
+
+permissions:
+  contents: read
+
+on:
+  workflow_call:
+    inputs:
+      skip_tests:
+        description: 'Skip tests, useful when there is a dedicated CI job for tests'
+        default: false
+        required: false
+        type: boolean
+      race_disabled:
+        description: Disables the race detector for tests
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  golangci:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
+          cache: false
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v5
+        with:
+          version: latest
+          args: --skip-dirs vendor --timeout 5m
+
+  govulncheck:
+    name: Vulnerability Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: govulncheck -test ./...
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          check-latest: true
+
+      - name: Go Format
+        run: gofmt -s -w . && git diff --exit-code
+
+      - name: Go Vet
+        run: go vet ./...
+
+      - name: Go Tidy
+        run: go mod tidy && git diff --exit-code
+
+      - name: Go Mod
+        run: go mod download
+
+      - name: Go Mod Verify
+        run: go mod verify
+
+      - name: Go Build
+        run: go build -o /dev/null ./...
+
+      - name: Go Compile Tests
+        if: ${{ inputs.skip_tests }}
+        run: go test -exec /bin/true ./...
+
+      - name: Go Test
+        if: ${{ !inputs.skip_tests && !inputs.race_disabled }}
+        run: go test -v -count=1 -race -shuffle=on -coverprofile=coverage.txt ./...
+
+      - name: Go Test (without race)
+        if: ${{ !inputs.skip_tests && inputs.race_disabled }}
+        run: go test -coverprofile=coverage.txt ./...

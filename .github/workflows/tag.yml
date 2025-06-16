@@ -1,0 +1,15 @@
+name: Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  docker:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/docker.yml
+    name: Docker

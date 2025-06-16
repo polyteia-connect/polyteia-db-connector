@@ -1,0 +1,22 @@
+name: PR
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  go:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/go.yml
+    name: Go
+    secrets: inherit
+
+  docker:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    needs: go
+    uses: ./.github/workflows/docker.yml
+    name: Docker

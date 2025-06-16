@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app }}
+  labels:
+    app.kubernetes.io/version: {{ .Values.version }}
+    app.kubernetes.io/name: {{ .Values.app }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.app }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/version: {{ .Values.version }}
+        app.kubernetes.io/name: {{ .Values.app }}
+      annotations:
+        deploymentTime: {{ now | date "2006-01-02T15:04:05" }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount }}
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsUser: 65532 # non-root user
+        runAsGroup: 65532 # non-root group
+        fsGroup: 65532 # non-root group
+      containers:
+        - name: {{ .Values.app }}
+          image: {{ .Values.imageRepository }}:{{ .Values.version }}
+          imagePullPolicy: {{ .Values.imagePullPolicy | default "Always" }}
+          ports:
+            - containerPort: 8080
+              name: http
+          livenessProbe:
+            httpGet:
+              port: http
+              path: /healthz
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              port: http
+              path: /healthz
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          {{- if .Values.env }}
+          env:
+            {{- toYaml .Values.env | nindent 12 }}
+          {{- end }}
+          {{- if .Values.envFrom }}
+          envFrom:
+            {{- toYaml .Values.envFrom | nindent 12 }}
+          {{- end }}
+          {{- if .Values.resources }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- end }}

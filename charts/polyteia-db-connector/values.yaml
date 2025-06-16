@@ -1,0 +1,66 @@
+# REQUIRED: Name of the application. Will be used as a prefix for all resources.
+app: polyteia-db-connector
+
+# REQUIRED: Kubernetes namespace to deploy all application resources.
+# Namespace must exists before deployment. It is not created by the chart.
+namespace: default
+
+# REQUIRED: Number of replicas to deploy.
+replicas: 1
+
+# REQUIRED: Version of the application.
+# The docker image with this version tag must exist in the container registry.
+version: main
+
+# REQUIRED: Name of the service account used by containers.
+# Service account must exist before and is not created by the chart.
+serviceAccount: default
+
+# REQUIRED: Docker image repository
+imageRepository: ghcr.io/polyteia-connect/polyteia-db-connector
+
+# OPTIONAL: Docker image pull policy. Default is Always.
+imagePullPolicy: Always
+
+# OPTIONAL: List of image pull secrets to use. Secrets must exist before and are not created by the chart.
+imagePullSecrets: []
+#  - name: my-secret
+#  - name: my-other-secret
+
+# OPTIONAL: Environment variables to set in the container.
+env:
+#  - name: CRON_SCHEDULE
+#    value: '* * * * *'
+#  - name: PERSONAL_ACCESS_TOKEN
+#    valueFrom:
+#      secretKeyRef:
+#        name: personal-access-token
+#        key: token
+
+# OPTIONAL: Environment variables to set in the container from a secret or config map.
+envFrom:
+#  - secretRef:
+#      name: polyteia-db-connector
+#  - configMapRef:
+#      name: polyteia-db-connector
+
+# OPTIONAL: Resources to allocate to the container.
+resources:
+#  requests:
+#    cpu: "1"
+#    memory: "512Mi"
+#  limits:
+#    cpu: "1"
+#    memory: "512Mi"
+
+# OPTIONAL: Network policy to apply to the pod. See
+#  https://kubernetes.io/docs/concepts/services-networking/network-policies/ for more information on network policies.
+networkPolicy:
+  # Enable network policy for the pod. Default is false.
+  enabled: false
+  # List of policy types to apply. Required if enabled is true.
+  policyTypes: []
+  # List of ingress rules to apply. Required if enabled is true.
+  ingress: {}
+  # List of egress rules to apply. Required if enabled is true.
+  egress: {}
