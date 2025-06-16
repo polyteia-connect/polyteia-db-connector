@@ -52,7 +52,7 @@ Die gesamte Konfiguration erfolgt über Umgebungsvariablen (diese können in ein
 ---
 
 > [!TIP]
-> Unter [Polyteia Docs](https://docs.polyteia.com/platform-docs/en/account/personal-access-keys-pak) finden Sie Informationen, wie Sie Personal Access Keys erstellen.
+> Unter [Polyteia Docs](https://docs.polyteia.com/konto/zugriffsschlussel-pak) finden Sie Informationen, wie Sie Personal Access Keys erstellen.
 
 ## 📝 Beispiel `.env`-Datei
 
