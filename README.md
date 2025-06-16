@@ -1,4 +1,4 @@
-# Polyteia DB Connector
+# Polyteia DB Connector 🚀
 
 Polyteia DB Connector is a tool designed to extract data from SQL databases (PostgreSQL or MySQL), transform the results
 into Parquet format, and upload them to a Polyteia dataset via API. It is ideal for scheduled, automated data transfers
@@ -6,7 +6,7 @@ from your internal databases to the Polyteia platform.
 
 ---
 
-## Features
+## ✨ Features
 
 - **Database Support:** Connects to PostgreSQL and MySQL databases using DuckDB for efficient querying and Parquet
   export.
@@ -19,7 +19,7 @@ from your internal databases to the Polyteia platform.
 
 ---
 
-## Architecture & Workflow
+## 🏗️ Architecture & Workflow
 
 1. **Configuration:** The connector loads its configuration from environment variables or a `.env` file.
 2. **Database Connection:** Uses DuckDB to connect to the source database (PostgreSQL/MySQL) and execute a user-defined
@@ -32,7 +32,7 @@ from your internal databases to the Polyteia platform.
 
 ---
 
-## Configuration
+## ⚙️ Configuration
 
 All configuration is done via environment variables (can be set in a `.env` file or injected as secrets in Kubernetes).
 Below is a list of supported variables:
@@ -60,7 +60,7 @@ Below is a list of supported variables:
 > You can checkout [Polyteia Docs](https://docs.polyteia.com/platform-docs/en/account/personal-access-keys-pak) for
 > information about how to create personal access keys.
 
-## Example `.env` File
+## 📝 Example `.env` File
 
 ```env
 PERSONAL_ACCESS_TOKEN=your_polyteia_token
@@ -79,15 +79,15 @@ SOURCE_DATABASE_TYPE=postgres
 SOURCE_DATABASE_SQL_QUERY=SELECT * FROM db.my_table;
 ```
 
-> [!NOTE]  
+> [!NOTE]
 > The SQL query must reference `db` as the database name as the external database is attached to duckdb as `db`
 > So instead of writing query: `SELECT * FROM my_table`, you must write `SELECT * FROM db.my_table`.
 
 ---
 
-## Usage
+## 🚀 Usage
 
-### Local (Go)
+### 🖥️ Local (Go)
 
 1. Copy the example `.env` file and fill in your configuration.
 2. Run the connector:
@@ -96,7 +96,7 @@ SOURCE_DATABASE_SQL_QUERY=SELECT * FROM db.my_table;
 go run ./cmd/connector
 ```
 
-### Docker
+### 🐳 Docker
 
 Build the Docker image (or use a published one):
 
@@ -116,7 +116,7 @@ Or pass environment variables directly:
 docker run -e PERSONAL_ACCESS_TOKEN=... -e DATASET_ID=... ... polyteia-db-connector:latest
 ```
 
-### Kubernetes (Helm)
+### ☸️ Kubernetes (Helm)
 
 A Helm chart is provided in `charts/polyteia-db-connector`.
 
@@ -132,14 +132,14 @@ helm upgrade --install polyteia-db-connector charts/polyteia-db-connector
 
 ---
 
-## Health Check
+## ❤️ Health Check
 
 The connector exposes a health check endpoint at `http://<host>:<HEALTH_CHECK_PORT>/healthz` for liveness/readiness
 probes.
 
 ---
 
-## Versioning
+## 🏷️ Versioning
 
 This project follows [Semantic Versioning](https://semver.org/). Releases are published on GitHub and as Docker images.
 Check the [releases page](https://github.com/polyteia-connect/polyteia-db-connector/releases) for the latest version and
@@ -147,20 +147,41 @@ changelog.
 
 ---
 
-## Contributing
+## 🤝 Contributing
 
 Contributions, issues, and feature requests are welcome! Please
 use [GitHub Issues](https://github.com/polyteia-connect/polyteia-db-connector/issues/new/choose) to report bugs or
 suggest enhancements.
 
+### How to Contribute 🛠️
+
+We love your input! To contribute, please follow these steps:
+
+1. **Clone** the repository locally (if you haven't already):
+   ```bash
+   git clone https://github.com/polyteia-connect/polyteia-db-connector.git
+   cd polyteia-db-connector
+   ```
+2. **Create a new branch** (directly on the repository) for your feature or bugfix:
+   ```bash
+   git checkout -b my-feature-branch
+   ```
+3. **Make your changes** and commit them with clear messages.
+4. **Push** your branch to the repository:
+   ```bash
+   git push origin my-feature-branch
+   ```
+5. **Open a Pull Request** against the `main` branch. Please provide a clear description of your changes and reference any related issues.
+6. Wait for review and feedback. We'll work with you to get your PR merged!
+
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License.
 
 ---
 
-## Support
+## 💬 Support
 
 For questions or support, please contact the Polyteia team or open an issue on GitHub.
