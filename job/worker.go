@@ -109,7 +109,7 @@ func openDuckDB(ctx context.Context, dbConfig SourceDatabaseConfig) (*sql.DB, er
 	case "postgres":
 		dbConfigString = fmt.Sprintf("ATTACH 'dbname=%s user=%s host=%s port=%s password=%s' AS db (TYPE postgres, READ_ONLY)", dbConfig.Name, dbConfig.User, dbConfig.Host, dbConfig.Port, dbConfig.Password)
 	case "mysql":
-		dbConfigString = fmt.Sprintf("ATTACH 'dbname=%s user=%s host=%s port=%s password=%s' AS db (TYPE mysql, READ_ONLY)", dbConfig.Name, dbConfig.User, dbConfig.Host, dbConfig.Port, dbConfig.Password)
+		dbConfigString = fmt.Sprintf("ATTACH 'database=%s user=%s host=%s port=%s password=%s' AS db (TYPE mysql, READ_ONLY)", dbConfig.Name, dbConfig.User, dbConfig.Host, dbConfig.Port, dbConfig.Password)
 	default:
 		return nil, fmt.Errorf("unsupported database type: %s", dbConfig.Type)
 	}
