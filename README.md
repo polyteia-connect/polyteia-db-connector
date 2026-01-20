@@ -1,15 +1,16 @@
 # Polyteia DB Connector 🚀
 
-Polyteia DB Connector is a tool designed to extract data from SQL databases (PostgreSQL or MySQL), transform the results
-into Parquet format, and upload them to a Polyteia dataset via API. It is ideal for scheduled, automated data transfers
+Polyteia DB Connector is a tool designed to extract data from SQL databases (PostgreSQL, MySQL, or MS SQL Server),
+transform the results
+into CSV format, and upload them to a Polyteia dataset via API. It is ideal for scheduled, automated data transfers
 from your internal databases to the Polyteia platform.
 
 ---
 
 ## ✨ Features
 
-- **Database Support:** Connects to PostgreSQL and MySQL databases using DuckDB for efficient querying and Parquet
-  export.
+- **Database Support:** Connects to PostgreSQL, MySQL, and MS SQL Server databases using native Go SQL drivers for
+  efficient querying and CSV export.
 - **Automated Scheduling:** Runs jobs on a configurable cron schedule.
 - **Polyteia Integration:** Securely uploads data to Polyteia datasets using API tokens.
 - **Flexible Deployment:** Run locally, as a Docker container, or in Kubernetes (Helm chart included).
@@ -22,11 +23,12 @@ from your internal databases to the Polyteia platform.
 ## 🏗️ Architecture & Workflow
 
 1. **Configuration:** The connector loads its configuration from environment variables or a `.env` file.
-2. **Database Connection:** Uses DuckDB to connect to the source database (PostgreSQL/MySQL) and execute a user-defined
-   SQL query.
-3. **Data Export:** The query result is exported as a Parquet file to a temporary location.
+2. **Database Connection:** Uses native Go SQL drivers to connect directly to the source database (PostgreSQL/MySQL/MS
+   SQL Server) and execute a user-defined SQL query.
+3. **Data Export:** The query result is exported as a CSV file to a temporary location with efficient memory management
+   for large datasets.
 4. **Authentication:** The connector authenticates with the Polyteia API using a personal access token.
-5. **Upload:** The Parquet file is uploaded to the specified Polyteia dataset.
+5. **Upload:** The CSV file is uploaded to the specified Polyteia dataset.
 6. **Scheduling:** The process is triggered on a cron schedule, with retries on failure.
 7. **Health Check:** A lightweight HTTP server exposes `/healthz` for monitoring.
 
@@ -37,27 +39,27 @@ from your internal databases to the Polyteia platform.
 All configuration is done via environment variables (can be set in a `.env` file or injected as secrets in Kubernetes).
 Below is a list of supported variables:
 
-| Variable                    | Description                                         | Required | Default                    |
-|-----------------------------|-----------------------------------------------------|----------|----------------------------|
-| `PERSONAL_ACCESS_TOKEN`     | Polyteia API personal access token.                 | Yes      | -                          |
-| `POLYTEIA_BASE_URL`         | Base URL for Polyteia API.                          | No       | https://app.polyteia.com   |
-| `DATASET_ID`                | Target Polyteia dataset ID.                         | Yes      | -                          |
-| `CRON_SCHEDULE`             | Cron expression for job scheduling.                 | No       | 0 0 * * * (midnight daily) |
-| `LOG_LEVEL`                 | Log level: debug, info, warn, error.                | No       | info                       |
-| `LOG_FORMAT`                | Log format: text or json.                           | No       | text                       |
-| `HEALTH_CHECK_PORT`         | Port for health check server.                       | No       | 8080                       |
-| `SOURCE_DATABASE_HOST`      | Hostname of the source database.                    | Yes      | -                          |
-| `SOURCE_DATABASE_PORT`      | Port of the source database.                        | Yes      | -                          |
-| `SOURCE_DATABASE_USER`      | Username for the source database.                   | Yes      | -                          |
-| `SOURCE_DATABASE_PASSWORD`  | Password for the source database.                   | No       | -                          |
-| `SOURCE_DATABASE_NAME`      | Name of the source database.                        | Yes      | -                          |
-| `SOURCE_DATABASE_TYPE`      | Type of the source database: `postgres` or `mysql`. | Yes      | -                          |
-| `SOURCE_DATABASE_SQL_QUERY` | SQL query to execute on the source database.        | Yes      | -                          |
+| Variable                    | Description                                                                | Required | Default                    |
+|-----------------------------|----------------------------------------------------------------------------|----------|----------------------------|
+| `PERSONAL_ACCESS_TOKEN`     | Polyteia API personal access token.                                        | Yes      | -                          |
+| `POLYTEIA_BASE_URL`         | Base URL for Polyteia API.                                                 | No       | <https://app.polyteia.com> |
+| `DATASET_ID`                | Target Polyteia dataset ID.                                                | Yes      | -                          |
+| `CRON_SCHEDULE`             | Cron expression for job scheduling.                                        | No       | 0 0 ** * (midnight daily)  |
+| `LOG_LEVEL`                 | Log level: debug, info, warn, error.                                       | No       | info                       |
+| `LOG_FORMAT`                | Log format: text or json.                                                  | No       | text                       |
+| `HEALTH_CHECK_PORT`         | Port for health check server.                                              | No       | 8080                       |
+| `SOURCE_DATABASE_HOST`      | Hostname of the source database.                                           | Yes      | -                          |
+| `SOURCE_DATABASE_PORT`      | Port of the source database.                                               | Yes      | -                          |
+| `SOURCE_DATABASE_USER`      | Username for the source database.                                          | Yes      | -                          |
+| `SOURCE_DATABASE_PASSWORD`  | Password for the source database.                                          | No       | -                          |
+| `SOURCE_DATABASE_NAME`      | Name of the source database.                                               | Yes      | -                          |
+| `SOURCE_DATABASE_TYPE`      | Type of the source database: `postgres`, `mysql`, `mssql`, or `sqlserver`. | Yes      | -                          |
+| `SOURCE_DATABASE_SQL_QUERY` | SQL query to execute on the source database.                               | Yes      | -                          |
 
 ---
 
 > [!TIP]
-> You can checkout [Polyteia Docs](https://docs.polyteia.com/platform-docs/en/account/personal-access-keys-pak) for
+> You can checkout [Polyteia Docs](https://docs.polyteia.com/platform-docs/de/account/personal-access-keys-pak) for
 > information about how to create personal access keys.
 
 ## 📝 Example `.env` File
@@ -76,12 +78,16 @@ SOURCE_DATABASE_USER=dbuser
 SOURCE_DATABASE_PASSWORD=dbpassword
 SOURCE_DATABASE_NAME=mydb
 SOURCE_DATABASE_TYPE=postgres
-SOURCE_DATABASE_SQL_QUERY=SELECT * FROM db.my_table;
+SOURCE_DATABASE_SQL_QUERY=SELECT * FROM my_table;
 ```
 
 > [!NOTE]
-> The SQL query must reference `db` as the database name as the external database is attached to duckdb as `db`
-> So instead of writing query: `SELECT * FROM my_table`, you must write `SELECT * FROM db.my_table`.
+> The SQL query uses standard SQL syntax for the selected database type. Since the connector connects directly to the
+> database using native drivers, you can use standard queries without any special prefixes. For example:
+>
+> - PostgreSQL: `SELECT * FROM my_table;` or `SELECT * FROM schema.my_table;`
+> - MySQL: `SELECT * FROM my_table;` or `SELECT * FROM database.my_table;`
+> - MS SQL Server: `SELECT * FROM dbo.my_table;` or `SELECT * FROM schema.my_table;`
 
 ---
 
@@ -158,20 +164,27 @@ suggest enhancements.
 We love your input! To contribute, please follow these steps:
 
 1. **Clone** the repository locally (if you haven't already):
+
    ```bash
    git clone https://github.com/polyteia-connect/polyteia-db-connector.git
    cd polyteia-db-connector
    ```
+
 2. **Create a new branch** (directly on the repository) for your feature or bugfix:
+
    ```bash
    git checkout -b my-feature-branch
    ```
+
 3. **Make your changes** and commit them with clear messages.
 4. **Push** your branch to the repository:
+
    ```bash
    git push origin my-feature-branch
    ```
-5. **Open a Pull Request** against the `main` branch. Please provide a clear description of your changes and reference any related issues.
+
+5. **Open a Pull Request** against the `main` branch. Please provide a clear description of your changes and reference
+   any related issues.
 6. Wait for review and feedback. We'll work with you to get your PR merged!
 
 ---

@@ -20,7 +20,7 @@ type Config struct {
 		User     string `env:"SOURCE_DATABASE_USER" env-required:"true"`      // User of the source database. E.g. user
 		Password string `env:"SOURCE_DATABASE_PASSWORD"`                      // Password of the source database. E.g. password
 		Name     string `env:"SOURCE_DATABASE_NAME" env-required:"true"`      // Name of the source database. E.g. database
-		Type     string `env:"SOURCE_DATABASE_TYPE" env-required:"true"`      // Type of the source database. Only mysql and postgres are supported for now
+		Type     string `env:"SOURCE_DATABASE_TYPE" env-required:"true"`      // Type of the source database. Supported: postgres, mysql, sqlserver
 		SQLQuery string `env:"SOURCE_DATABASE_SQL_QUERY" env-required:"true"` // Query to run on source database
 	}
 }
