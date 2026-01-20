@@ -50,7 +50,7 @@ func OpenDatabase(ctx context.Context, dbConfig SourceDatabaseConfig) (*sql.DB, 
 	defer cancel()
 
 	if err := db.PingContext(pingCtx); err != nil {
-		db.Close()
+		db.Close() //nolint
 		return nil, fmt.Errorf("failed to ping %s database: %w", dbConfig.Type, err)
 	}
 
