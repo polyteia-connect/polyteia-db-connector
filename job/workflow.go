@@ -90,17 +90,7 @@ func (wf *Workflow) stepConnect(ctx context.Context) error {
 func (wf *Workflow) stepExecute(ctx context.Context) (string, error) {
 	slog.InfoContext(ctx, "Executing query and exporting to CSV")
 
-	// Set query timeout (30 seconds default, or use context timeout if shorter)
-	queryCtx := ctx
-	if _, ok := ctx.Deadline(); ok {
-		queryCtx = ctx
-	} else {
-		var cancel context.CancelFunc
-		queryCtx, cancel = context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
-	}
-
-	csvFile, err := ExecuteQueryToCSV(queryCtx, wf.db, wf.config.SQLQuery)
+	csvFile, err := ExecuteQueryToCSV(ctx, wf.db, wf.config.SQLQuery)
 	if err != nil {
 		return "", err
 	}

@@ -47,7 +47,6 @@ func main() {
 			slog.ErrorContext(ctx, "Failed to run job after all retries", "error", err)
 		}
 	})
-
 	if err != nil {
 		slog.ErrorContext(ctx, "Error creating cron job", "error", err)
 		os.Exit(1)
