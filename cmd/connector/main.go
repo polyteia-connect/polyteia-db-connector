@@ -31,15 +31,14 @@ func main() {
 	defer crn.Stop()
 
 	client := polygo.NewClient(c.PersonalAccessToken, c.BaseURL)
+	worker, err := newWorker(ctx, client, c)
+	if err != nil {
+		slog.ErrorContext(ctx, "Error creating new worker", "error", err)
+		os.Exit(1)
+	}
+	defer worker.Close() //nolint:errcheck
 
-	_, err := crn.AddFunc(c.CronSchedule, func() {
-		worker, err := newWorker(ctx, client, c)
-		if err != nil {
-			slog.ErrorContext(ctx, "Error creating new worker", "error", err)
-			return
-		}
-		defer worker.Close() //nolint:errcheck
-
+	_, err = crn.AddFunc(c.CronSchedule, func() {
 		ctx = slogctx.Append(ctx, "job_id", worker.ID())
 
 		if err := doWithRetry(ctx, func() error {
@@ -80,7 +79,7 @@ func startHealthCheck(ctx context.Context, port string, crn *cron.Cron) {
 
 func newWorker(ctx context.Context, client *polygo.Client, c config.Config) (*job.Worker, error) {
 	slog.InfoContext(ctx, "Starting worker...")
-	return job.NewWorker(ctx, client, job.WorkerConfig{
+	return job.NewWorker(client, job.WorkerConfig{
 		DatasetID: c.DatasetID,
 		SQLQuery:  c.SourceDatabase.SQLQuery,
 		SourceDatabase: job.SourceDatabaseConfig{
@@ -96,7 +95,7 @@ func newWorker(ctx context.Context, client *polygo.Client, c config.Config) (*jo
 
 func doWithRetry(ctx context.Context, f func() error) error {
 	var lastErr error
-	for i := 0; i < maxJobRetries; i++ {
+	for i := range maxJobRetries {
 		if err := f(); err != nil {
 			slog.ErrorContext(ctx, "Error in function execution", "error", err)
 			slog.WarnContext(ctx, "Retrying function execution", "retry", i+1, "interval", retryInterval.String())
