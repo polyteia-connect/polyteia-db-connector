@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 
 	"resty.dev/v3"
 )
@@ -14,28 +13,27 @@ const (
 )
 
 type requestCtx struct {
-	client *resty.Client
+	client  *resty.Client
+	baseURL string
+	token   string
 }
 
 // getRequestCtx returns the request context.
 func getRequestCtx(ctx context.Context) *requestCtx {
-	return ctx.Value(requestCtxKey).(*requestCtx)
+	v, _ := ctx.Value(requestCtxKey).(*requestCtx)
+	return v
 }
 
-// WithRequestCtx sets the Personal Access Key and base URL in the context.
-func WithRequestCtx(ctx context.Context, pak string, baseURL string) context.Context {
-	client := resty.New().
-		SetBaseURL(baseURL).
-		SetAuthToken(pak).
-		AddResponseMiddleware(func(client *resty.Client, resp *resty.Response) error {
-			if resp.StatusCode() != 200 {
-				return fmt.Errorf("unexpected response status code: %d, body: %s", resp.StatusCode(), resp.Bytes())
-			}
-
-			return nil
-		})
+// WithRequestCtx sets the base URL and, if not empty, the session token used as bearer auth in the context.
+func WithRequestCtx(ctx context.Context, baseURL string, token string) context.Context {
+	client := resty.New().SetBaseURL(baseURL)
+	if token != "" {
+		client.SetAuthToken(token)
+	}
 
 	return context.WithValue(ctx, requestCtxKey, &requestCtx{
-		client: client,
+		client:  client,
+		baseURL: baseURL,
+		token:   token,
 	})
 }

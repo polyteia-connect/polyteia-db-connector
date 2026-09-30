@@ -30,7 +30,15 @@ func main() {
 	))
 	defer crn.Stop()
 
-	client := polygo.NewClient(c.PersonalAccessToken, c.BaseURL)
+	client := polygo.NewClient(c.PersonalAccessToken, c.BaseURL, polygo.Organization{
+		ID:   c.OrganizationID,
+		Slug: c.OrganizationSlug,
+	})
+	if err := job.Preflight(ctx, client, workerConfig(c), c.BaseURL); err != nil {
+		slog.ErrorContext(ctx, "Connector is not ready, fix the failed checks above and restart", "error", err)
+		os.Exit(1)
+	}
+
 	worker, err := newWorker(ctx, client, c)
 	if err != nil {
 		slog.ErrorContext(ctx, "Error creating new worker", "error", err)
@@ -78,9 +86,15 @@ func startHealthCheck(ctx context.Context, port string, crn *cron.Cron) {
 
 func newWorker(ctx context.Context, client *polygo.Client, c config.Config) (*job.Worker, error) {
 	slog.InfoContext(ctx, "Starting worker...")
-	return job.NewWorker(client, job.WorkerConfig{
-		DatasetID: c.DatasetID,
-		SQLQuery:  c.SourceDatabase.SQLQuery,
+	return job.NewWorker(client, workerConfig(c))
+}
+
+func workerConfig(c config.Config) job.WorkerConfig {
+	return job.WorkerConfig{
+		DatasetID:          c.DatasetID,
+		SQLQuery:           c.SourceDatabase.SQLQuery,
+		IngestPollInterval: c.IngestPollInterval,
+		IngestTimeout:      c.IngestTimeout,
 		SourceDatabase: job.SourceDatabaseConfig{
 			Host:     c.SourceDatabase.Host,
 			Port:     c.SourceDatabase.Port,
@@ -89,7 +103,7 @@ func newWorker(ctx context.Context, client *polygo.Client, c config.Config) (*jo
 			Name:     c.SourceDatabase.Name,
 			Type:     c.SourceDatabase.Type,
 		},
-	})
+	}
 }
 
 func doWithRetry(ctx context.Context, f func() error) error {

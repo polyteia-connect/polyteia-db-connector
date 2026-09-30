@@ -11,8 +11,10 @@ geplante, automatisierte Datenübertragungen aus Ihren internen Datenbanken auf 
 - **Datenbankunterstützung:** Verbindet sich mit PostgreSQL-, MySQL- und MS SQL Server-Datenbanken über native Go
   SQL-Treiber für effizientes Abfragen und CSV-Export.
 - **Automatisierte Planung:** Führt Jobs nach einem konfigurierbaren Cron-Zeitplan aus.
-- **Polyteia-Integration:** Lädt Daten sicher in Polyteia-Datasets hoch, indem API-Token verwendet werden.
+- **Polyteia-Integration:** Lädt Daten sicher mit Personal Access Keys in Polyteia-Datasets hoch.
 - **Flexibles Deployment:** Lokal, als Docker-Container oder in Kubernetes (Helm-Chart inbegriffen) ausführbar.
+- **Startprüfungen:** Prüft beim Start Datenbankzugriff, Zugangsdaten und Dataset-Berechtigungen und protokolliert das
+  Ergebnis jeder Prüfung.
 - **Health Checks:** Stellt einen Endpunkt unter `/healthz` für Liveness- und Readiness-Probes bereit.
 - **Konfigurierbare Protokollierung:** Unterstützt verschiedene Log-Level und -Formate.
 - **Sichere Konfiguration:** Umgebungsvariablen und Secret-Injection für sensible Daten.
@@ -22,14 +24,20 @@ geplante, automatisierte Datenübertragungen aus Ihren internen Datenbanken auf 
 ## 🏗️ Architektur & Workflow
 
 1. **Konfiguration:** Der Connector lädt seine Konfiguration aus Umgebungsvariablen oder einer `.env`-Datei.
-2. **Datenbankverbindung:** Native Go SQL-Treiber werden verwendet, um sich direkt mit der Quell-Datenbank (
+2. **Startprüfungen:** Bevor ein Job geplant wird, prüft der Connector, ob Quell-Datenbank, Polyteia-API und
+   Ziel-Dataset erreichbar und nutzbar sind. Schlägt eine Prüfung fehl, beendet er sich (siehe
+   [Startprüfungen](#-startprüfungen)).
+3. **Datenbankverbindung:** Native Go SQL-Treiber werden verwendet, um sich direkt mit der Quell-Datenbank (
    PostgreSQL/MySQL/MS SQL Server) zu verbinden und eine benutzerdefinierte SQL-Abfrage auszuführen.
-3. **Datenexport:** Das Abfrageergebnis wird als CSV-Datei in ein temporäres Verzeichnis exportiert, mit effizientem
+4. **Datenexport:** Das Abfrageergebnis wird als CSV-Datei in ein temporäres Verzeichnis exportiert, mit effizientem
    Speichermanagement für große Datensätze.
-4. **Authentifizierung:** Der Connector authentifiziert sich über ein Personal Access Token bei der Polyteia-API.
-5. **Upload:** Die CSV-Datei wird in das angegebene Polyteia-Dataset hochgeladen.
-6. **Zeitplanung:** Der Prozess wird nach einem Cron-Zeitplan ausgelöst, mit Wiederholungsversuchen bei Fehlern.
-7. **Health Check:** Ein leichtgewichtiger HTTP-Server stellt den Endpunkt `/healthz` für die Überwachung bereit.
+5. **Authentifizierung:** Der Connector tauscht seinen Personal Access Key gegen eine kurzlebige Sitzung für die
+   konfigurierte Organisation.
+6. **Upload:** Die CSV-Datei wird in das angegebene Polyteia-Dataset hochgeladen und ersetzt dessen Daten. Anschließend
+   wartet der Connector, bis der Import abgeschlossen ist, und markiert den Job als fehlgeschlagen, wenn der Import
+   fehlschlägt.
+7. **Zeitplanung:** Der Prozess wird nach einem Cron-Zeitplan ausgelöst, mit Wiederholungsversuchen bei Fehlern.
+8. **Health Check:** Ein leichtgewichtiger HTTP-Server stellt den Endpunkt `/healthz` für die Überwachung bereit.
 
 ---
 
@@ -40,9 +48,13 @@ Kubernetes gesetzt werden). Nachfolgend eine Liste der unterstützten Variablen:
 
 | Variable                    | Beschreibung                                                            | Erforderlich | Standardwert                   |
 |-----------------------------|-------------------------------------------------------------------------|--------------|--------------------------------|
-| `PERSONAL_ACCESS_TOKEN`     | Personal Access Token für die Polyteia-API.                             | Ja           | –                              |
-| `POLYTEIA_BASE_URL`         | Basis-URL für die Polyteia-API.                                         | Nein         | <https://app.polyteia.com>     |
+| `PERSONAL_ACCESS_TOKEN`     | Polyteia Personal Access Key (`pak_...`).                               | Ja           | –                              |
+| `POLYTEIA_BASE_URL`         | Basis-URL für die Polyteia-API.                                         | Nein         | <https://web.polyteia.de>      |
+| `POLYTEIA_ORGANIZATION_ID`  | ID der Organisation, zu der das Dataset gehört (`org_...`).             | Ja\*         | –                              |
+| `POLYTEIA_ORGANIZATION_SLUG`| Slug der Organisation, zu der das Dataset gehört.                       | Ja\*         | –                              |
 | `DATASET_ID`                | ID des Ziel-Polyteia-Datasets.                                          | Ja           | –                              |
+| `INGEST_POLL_INTERVAL`      | Wie oft der Import-Status nach einem Upload abgefragt wird.             | Nein         | 5s                             |
+| `INGEST_TIMEOUT`            | Wie lange nach einem Upload auf den Abschluss des Imports gewartet wird. | Nein        | 30m                            |
 | `CRON_SCHEDULE`             | Cron-Ausdruck für die Job-Planung.                                      | Nein         | 0 0 ** * (Mitternacht täglich) |
 | `LOG_LEVEL`                 | Log-Level: debug, info, warn, error.                                    | Nein         | info                           |
 | `LOG_FORMAT`                | Log-Format: text oder json.                                             | Nein         | text                           |
@@ -55,6 +67,12 @@ Kubernetes gesetzt werden). Nachfolgend eine Liste der unterstützten Variablen:
 | `SOURCE_DATABASE_TYPE`      | Typ der Quell-Datenbank: `postgres`, `mysql`, `mssql` oder `sqlserver`. | Ja           | –                              |
 | `SOURCE_DATABASE_SQL_QUERY` | SQL-Abfrage, die auf der Quell-Datenbank ausgeführt wird.               | Ja           | –                              |
 
+\* Genau eine der Variablen `POLYTEIA_ORGANIZATION_ID` oder `POLYTEIA_ORGANIZATION_SLUG` muss gesetzt sein.
+
+Der Benutzer des Personal Access Keys muss lizenziertes Mitglied der Organisation sein, das Dataset bearbeiten dürfen und
+die Auftragsverarbeitungsbedingungen der Lösung des Datasets bestätigt haben. Die Organisation muss Personal Access Keys
+erlauben.
+
 ---
 
 > [!TIP]
@@ -64,8 +82,9 @@ Kubernetes gesetzt werden). Nachfolgend eine Liste der unterstützten Variablen:
 ## 📝 Beispiel `.env`-Datei
 
 ```env
-PERSONAL_ACCESS_TOKEN=your_polyteia_token
-POLYTEIA_BASE_URL=https://app.polyteia.com
+PERSONAL_ACCESS_TOKEN=pak_your_personal_access_key
+POLYTEIA_BASE_URL=https://web.polyteia.de
+POLYTEIA_ORGANIZATION_SLUG=your_organization_slug
 DATASET_ID=your_dataset_id
 CRON_SCHEDULE=0 0 * * *
 LOG_LEVEL=info
@@ -119,7 +138,7 @@ docker run --env-file .env polyteia-db-connector:latest
 Alternativ können Sie die Umgebungsvariablen direkt übergeben:
 
 ```bash
-docker run -e PERSONAL_ACCESS_TOKEN=... -e DATASET_ID=... ... polyteia-db-connector:latest
+docker run -e PERSONAL_ACCESS_TOKEN=... -e POLYTEIA_ORGANIZATION_SLUG=... -e DATASET_ID=... ... polyteia-db-connector:latest
 ```
 
 ### ☸️ Kubernetes (Helm)
@@ -135,6 +154,39 @@ helm upgrade --install polyteia-db-connector charts/polyteia-db-connector
 
 - Umgebungsvariablen können über `env` oder `envFrom` in `values.yaml` gesetzt werden.
 - Ressourcenanforderungen/-limits und Netzwerkrichtlinien sind konfigurierbar.
+
+---
+
+## ✅ Startprüfungen
+
+Beim Start führt der Connector die folgenden Prüfungen aus, bevor ein Job geplant wird, und protokolliert, wohin er sich
+verbunden hat und das Ergebnis jeder Prüfung, egal ob erfolgreich oder fehlgeschlagen:
+
+| Prüfung                 | Was geprüft wird                                                                                   |
+|-------------------------|----------------------------------------------------------------------------------------------------|
+| `source database`       | Die Quell-Datenbank ist erreichbar und akzeptiert die konfigurierten Zugangsdaten.                 |
+| `source query`          | Die Datenbank kann `SOURCE_DATABASE_SQL_QUERY` parsen und die verwendeten Tabellen existieren. Die Abfrage wird nicht ausgeführt. Für MS SQL Server übersprungen. |
+| `personal access key`   | Der Personal Access Key ist gültig und für die konfigurierte Organisation nutzbar.                 |
+| `dataset access`        | Das Dataset existiert und der Benutzer des Keys darf es sehen.                                     |
+| `upload permission`     | Der Benutzer des Keys darf das Dataset bearbeiten, was für Uploads nötig ist.                      |
+| `data processing terms` | Der Benutzer des Keys hat die Auftragsverarbeitungsbedingungen der Lösung des Datasets bestätigt.  |
+
+Alle Prüfungen laufen, auch wenn eine fehlschlägt; Prüfungen, die von einer fehlgeschlagenen abhängen, werden mit einer
+Warnung übersprungen. Eine fehlgeschlagene Prüfung wird mit dem Grund und einem Hinweis auf die zu prüfende Einstellung
+protokolliert. Schlägt eine Prüfung fehl, beendet sich der Connector mit Exit-Code 1, sodass Fehlkonfigurationen sofort
+auffallen (z. B. als Pod im Crash-Loop in Kubernetes) und nicht erst beim ersten Job.
+
+Beispielausgabe:
+
+```text
+level=INFO msg="Startup check passed" check="source database" type=postgres host=localhost port=5432 database=app user=connector
+level=INFO msg="Startup check passed" check="source query"
+level=INFO msg="Startup check passed" check="personal access key" base_url=https://web.polyteia.de organization_id=org_... scope=organization
+level=INFO msg="Startup check passed" check="dataset access" dataset_id=ds_... dataset_name="Mein Dataset" solution_id=sol_...
+level=INFO msg="Startup check passed" check="upload permission" dataset_id=ds_...
+level=ERROR msg="Startup check failed" check="data processing terms" error="the user of the personal access key has not acknowledged the data processing terms of solution sol_..., ..."
+level=ERROR msg="Connector is not ready, fix the failed checks above and restart" error="startup checks failed: [data processing terms]"
+```
 
 ---
 
