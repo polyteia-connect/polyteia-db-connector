@@ -21,6 +21,10 @@ type WorkerConfig struct {
 	DatasetID      string
 	SQLQuery       string
 	SourceDatabase SourceDatabaseConfig
+	// IngestPollInterval is how often the ingest status is checked after an upload.
+	IngestPollInterval time.Duration
+	// IngestTimeout is how long to wait for the ingest to finish after an upload.
+	IngestTimeout time.Duration
 }
 
 type Worker struct {

@@ -3,8 +3,10 @@ package job
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"time"
 
@@ -99,28 +101,76 @@ func (wf *Workflow) stepExecute(ctx context.Context) (string, error) {
 	return csvFile, nil
 }
 
-// stepUpload uploads the CSV file to Polyteia
+// stepUpload uploads the CSV file to Polyteia and waits for the ingest to finish
 func (wf *Workflow) stepUpload(ctx context.Context, csvFile string) error {
-	slog.DebugContext(ctx, "Generating dataset upload token")
+	slog.DebugContext(ctx, "Exchanging personal access key for a session")
 
-	// Generate dataset upload token
-	uploadToken, err := wf.apiClient.GenerateDatasetUploadToken(ctx, polygo.DatasetUploadTokenRequest{
-		ID:          wf.config.DatasetID,
-		ContentType: "text/csv",
-	})
+	session, err := wf.apiClient.ExchangePersonalAccessKey(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to generate upload token: %w", err)
+		return fmt.Errorf("failed to exchange personal access key: %w", err)
 	}
 
 	slog.InfoContext(ctx, "Uploading file to dataset", "dataset_id", wf.config.DatasetID, "file", csvFile)
 
-	// Upload file to dataset
-	if err := wf.apiClient.UploadDataset(ctx, uploadToken.Token, csvFile); err != nil {
+	upload, err := wf.apiClient.UploadDataset(ctx, session.Token, wf.config.DatasetID, "text/csv", csvFile)
+	if err != nil {
 		return fmt.Errorf("failed to upload dataset: %w", err)
 	}
 
-	slog.InfoContext(ctx, "File uploaded successfully")
-	return nil
+	slog.InfoContext(ctx, "File uploaded successfully, waiting for ingest", "ingest_id", upload.IngestID, "size", upload.Size)
+
+	return wf.waitForIngest(ctx, session, upload.IngestID)
+}
+
+// waitForIngest polls the ingest status until it completes, fails or the ingest timeout is reached
+func (wf *Workflow) waitForIngest(ctx context.Context, session *polygo.Session, ingestID string) error {
+	ctx, cancel := context.WithTimeout(ctx, wf.config.IngestTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(wf.config.IngestPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("ingest %s did not finish within %s: %w", ingestID, wf.config.IngestTimeout, ctx.Err())
+		case <-ticker.C:
+		}
+
+		// Sessions are short-lived, renew it before it expires during a long ingest
+		if time.Until(session.ExpiresAt) < time.Minute {
+			renewed, err := wf.apiClient.ExchangePersonalAccessKey(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to renew session: %w", err)
+			}
+			session = renewed
+		}
+
+		status, err := wf.apiClient.GetDatasetIngestStatus(ctx, session.Token, polygo.DatasetIngestStatusRequest{
+			ID:       wf.config.DatasetID,
+			IngestID: ingestID,
+		})
+		if err != nil {
+			// Client errors will not resolve by retrying, anything else may be transient
+			var apiErr *polygo.Error
+			if errors.As(err, &apiErr) && apiErr.Status >= 400 && apiErr.Status < 500 && apiErr.Status != http.StatusTooManyRequests {
+				return fmt.Errorf("failed to get ingest status: %w", err)
+			}
+
+			slog.WarnContext(ctx, "Failed to get ingest status, retrying", "ingest_id", ingestID, "error", err)
+			continue
+		}
+
+		slog.DebugContext(ctx, "Ingest status", "ingest_id", ingestID, "status", status.Status)
+
+		switch status.Status {
+		case polygo.IngestStatusCompleted:
+			slog.InfoContext(ctx, "Ingest completed successfully", "ingest_id", ingestID)
+			return nil
+		case polygo.IngestStatusFailed:
+			return fmt.Errorf("ingest %s failed: %s", ingestID, status.ErrorMessage)
+		}
+	}
 }
 
 // cleanup closes database connections and cleans up resources
